@@ -23,16 +23,16 @@ for index, row in df.iterrows():
             continue
 
         # Obter valores de sessão e configuração
-        session_id, format_data_value_locally, show_params, sticky_session_key, filter_tile_size, locale, language, features_json, keychain_version = pegar_valores()
+        data_formatada, session_id, format_data_value_locally, show_params, sticky_session_key, filter_tile_size, locale, language, features_json, keychain_version = pegar_valores()
 
         # Carregar dados da aba e obter valor do filtro
-        valor_filtro = carregar_abas(session_id, format_data_value_locally, show_params, sticky_session_key, filter_tile_size, locale, language, features_json, keychain_version)
+        valor_filtro = carregar_abas(data_formatada, session_id, format_data_value_locally, show_params, sticky_session_key, filter_tile_size, locale, language, features_json, keychain_version)
 
         # Pesquisar CNPJ e obter o ID correspondente
-        id_cnpj = pesquisar_cnpj(session_id, valor_filtro, cnpj)
+        id_cnpj = pesquisar_cnpj(data_formatada, session_id, valor_filtro, cnpj)
 
         # Obter dados do CNPJ
-        retorno = dados_cnpj(session_id, valor_filtro, id_cnpj)
+        retorno = dados_cnpj(data_formatada, session_id, valor_filtro, id_cnpj)
 
         # Atualizar o DataFrame com os resultados
         df.at[index, 'Representante'] = retorno.get('representante', '')

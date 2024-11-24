@@ -1,5 +1,6 @@
 # IMPORTES
 
+from datetime import datetime, timedelta
 from desafio_DADOS import *
 import requests
 import json
@@ -9,39 +10,45 @@ import re
 with requests.session() as s:
 
     # Faz uma requisição inicial e obtém valores de configuração e sessão
-    def pegar_valores():    
-        url = f'https://public.tableau.com/vizql/w/BoletimdeSeguranadeMercado-18_11_2024/v/NoAporteGarantiasFinanceiras/startSession/viewing?:embed=y&:showVizHome=no&:host_url=https://public.tableau.com/&:embed_code_version=3&:tabs=yes&:toolbar=yes&:animate_transition=yes&:display_static_image=no&:display_spinner=no&:display_overlay=yes&:display_count=yes&:language=pt-BR&:loadOrderID=0&:redirect=auth'
+    def pegar_valores():
+        # Data inicial (data atual)
+        data_atual = datetime.now() 
 
-        pegar_valores_POST = s.post(url) 
+        while True:
+            data_formatada = data_atual.strftime("%d_%m_%Y")
 
-        if pegar_valores_POST.status_code == 200:
-            # X-Session-Id
-            session_id = pegar_valores_POST.headers.get('X-Session-Id')
+            # Monta a URL com a data formatada
+            url = f'https://public.tableau.com/vizql/w/BoletimdeSeguranadeMercado-{data_formatada}/v/NoAporteGarantiasFinanceiras/startSession/viewing?:embed=y&:showVizHome=no&:host_url=https://public.tableau.com/&:embed_code_version=3&:tabs=yes&:toolbar=yes&:animate_transition=yes&:display_static_image=no&:display_spinner=no&:display_overlay=yes&:display_count=yes&:language=pt-BR&:loadOrderID=0&:redirect=auth'
 
-            # Converter para dicionário e pegar os valores
-            json_data = json.loads(pegar_valores_POST.text)
+            # Faz a requisição POST
+            pegar_valores_POST = s.post(url)
 
-            format_data_value_locally = json_data["formatDataValueLocally"]
+            # Verifica o status da resposta
+            if pegar_valores_POST.status_code == 200:
+                # Extrai o X-Session-Id
+                session_id = pegar_valores_POST.headers.get('X-Session-Id')
 
-            show_params = json_data["showParams"]
+                # Converte o conteúdo da resposta para JSON
+                json_data = json.loads(pegar_valores_POST.text)
 
-            sticky_session_key = json_data["stickySessionKey"]
+                # Extrai os valores necessários do JSON
+                format_data_value_locally = json_data.get("formatDataValueLocally")
+                show_params = json_data.get("showParams")
+                sticky_session_key = json_data.get("stickySessionKey")
+                filter_tile_size = json_data.get("filterTileSize")
+                locale = json_data.get("locale")
+                language = json_data.get("language")
+                features_json = json_data.get("features_json")
+                keychain_version = json_data.get("keychain_version")
 
-            filter_tile_size = json_data["filterTileSize"]
-
-            locale = json_data["locale"]
-
-            language = json_data["language"]
-
-            features_json = json_data["features_json"]
-
-            keychain_version = json_data["keychain_version"]
-
-            return session_id, format_data_value_locally, show_params, sticky_session_key, filter_tile_size, locale, language, features_json, keychain_version
+                return data_formatada, session_id, format_data_value_locally, show_params,sticky_session_key, filter_tile_size, locale, language, features_json, keychain_version
+            else:
+                # Se o status não for 200, diminui um dia da data
+                data_atual -= timedelta(days=1)
         
     # Faz uma requisição para carregar as abas e pegar o valor do filtro
-    def carregar_abas(session_id, format_data_value_locally, show_params, sticky_session_key, filter_tile_size, locale, language, features_json, keychain_version): 
-        url = f'https://public.tableau.com/vizql/w/BoletimdeSeguranadeMercado-18_11_2024/v/NoAporteGarantiasFinanceiras/bootstrapSession/sessions/{session_id}' 
+    def carregar_abas(data_formatada, session_id, format_data_value_locally, show_params, sticky_session_key, filter_tile_size, locale, language, features_json, keychain_version): 
+        url = f'https://public.tableau.com/vizql/w/BoletimdeSeguranadeMercado-{data_formatada}/v/NoAporteGarantiasFinanceiras/bootstrapSession/sessions/{session_id}' 
 
         carregar_abas_POST = s.post(
             url,
@@ -57,8 +64,8 @@ with requests.session() as s:
             return valor_filtro
 
     # Faz uma requisição para pesquisar o CNPJ e retorna seu ID correspondente
-    def pesquisar_cnpj(session_id, valor_filtro, cnpj):
-        url = f'https://public.tableau.com/vizql/w/BoletimdeSeguranadeMercado-18_11_2024/v/NoAporteGarantiasFinanceiras/searchwithindex/sessions/{session_id}/sheets/Desligamento%20por%20Descumprimento/filters/%5B{valor_filtro}%5D.%5Bnone%3ACNPJ%20do%20Agente%3Ank%5D?query={cnpj}&maxRows=100&domain=database' 
+    def pesquisar_cnpj(data_formatada, session_id, valor_filtro, cnpj):
+        url = f'https://public.tableau.com/vizql/w/BoletimdeSeguranadeMercado-{data_formatada}/v/NoAporteGarantiasFinanceiras/searchwithindex/sessions/{session_id}/sheets/Desligamento%20por%20Descumprimento/filters/%5B{valor_filtro}%5D.%5Bnone%3ACNPJ%20do%20Agente%3Ank%5D?query={cnpj}&maxRows=100&domain=database' 
 
         pesquisar_cnpj_GET = s.get(url)
 
@@ -114,8 +121,8 @@ with requests.session() as s:
         }
 
     # Faz uma requisição para buscar e retorna os dados de um CNPJ
-    def dados_cnpj(session_id, valor_filtro, id_cnpj): 
-        url = f'https://public.tableau.com/vizql/w/BoletimdeSeguranadeMercado-18_11_2024/v/NoAporteGarantiasFinanceiras/sessions/{session_id}/commands/tabdoc/categorical-filter-by-index' 
+    def dados_cnpj(data_formatada, session_id, valor_filtro, id_cnpj): 
+        url = f'https://public.tableau.com/vizql/w/BoletimdeSeguranadeMercado-{data_formatada}/v/NoAporteGarantiasFinanceiras/sessions/{session_id}/commands/tabdoc/categorical-filter-by-index' 
 
         dados_cnpj_POST = s.post(
             url,
